@@ -127,3 +127,7 @@ dmypy.json
 
 # Pyre type checker
 .pyre/
+/model.joblib
+/vectorizer.joblib
+/bad-words.csv
+/dataset.csv
