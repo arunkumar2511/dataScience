@@ -1,12 +1,19 @@
 import joblib
 from sklearn.feature_extraction.text import CountVectorizer
+import pandas as pd
 
 try:
     model = joblib.load("model.joblib") 
-    vectorizer = CountVectorizer(stop_words='english', min_df=0.0001)
-    X = vectorizer.fit_transform(["what the fuck"])
-    print(X)
+    data = pd.read_csv('dataset.csv')
+    data.sort_values("text", inplace = True)
+    data.drop_duplicates(subset ="text",
+                     keep = False, inplace = True)
+    texts = data.iloc[:15442]['text'] 
+    vectorizer = CountVectorizer(stop_words='english',vocabulary=texts, min_df=0.0001)
+    print("vect")
+    X = vectorizer.transform(["Going to the creek with my bitches tomorrow"])
+    print("x====>",X)
     result = model.predict(X)
-    print(result)
+    print("result====>",result)
 except Exception as ex:
     print(ex)
