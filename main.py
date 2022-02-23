@@ -1,11 +1,57 @@
-import psycopg2
+from fastapi import FastAPI
+import pandas as pd
+import numpy as np
+from nltk.tokenize import word_tokenize
+from nltk import pos_tag
+from nltk.corpus import stopwords
+from nltk.stem import WordNetLemmatizer 
+from collections import defaultdict
+from nltk.corpus import wordnet as wn 
+import pickle
 
-CONNECTION = "postgres://tsdbadmin:pgziyphxveb9rklk@wermaj7i3e.tml67azc7u.tsdb.cloud.timescale.com:32395/tsdb?sslmode=require"
-def main():  
-    conn = psycopg2.connect(CONNECTION)
-    cursor = conn.cursor()
-    # use the cursor to interact with your database
-    cursor.execute("SELECT 'hello world'")
-    print(cursor.fetchone())
+app = FastAPI()
 
-main()
+tag_map = defaultdict(lambda: wn.NOUN)
+tag_map['J'] = wn.ADJ
+tag_map['V'] = wn.VERB
+tag_map['R'] = wn.ADV
+
+def text_preprocessing(text):
+    # Step - 1b : Change all the text to lower case. This is required as python interprets 'dog' and 'DOG' differently
+    text = text.lower()
+
+    # Step - 1c : Tokenization : In this each entry in the corpus will be broken into set of words
+    text_words_list = word_tokenize(text)
+
+    # Step - 1d : Remove Stop words, Non-Numeric and perfom Word Stemming/Lemmenting.
+    # Declaring Empty List to store the words that follow the rules for this step
+    Final_words = []
+    # Initializing WordNetLemmatizer()
+    word_Lemmatized = WordNetLemmatizer()
+    # pos_tag function below will provide the 'tag' i.e if the word is Noun(N) or Verb(V) or something else.
+    for word, tag in pos_tag(text_words_list):
+        # Below condition is to check for Stop words and consider only alphabets
+        if word not in stopwords.words('english') and word.isalpha():
+            word_Final = word_Lemmatized.lemmatize(word, tag_map[tag[0]])
+            Final_words.append(word_Final)
+        # The final processed set of words for each iteration will be stored in 'text_final'
+    return str(Final_words)
+
+
+# Loading Label encoder
+labelencode = pickle.load(open('labelencoder_fitted.pkl', 'rb'))
+
+# Loading TF-IDF Vectorizer
+Tfidf_vect = pickle.load(open('Tfidf_vect_fitted.pkl', 'rb'))
+
+# Loading models
+SVM = pickle.load(open('svm_trained_model.sav', 'rb'))
+
+@app.get("/check-profanity")
+def checkProfanity(text:str):
+    sample_text_processed = text_preprocessing(text)
+    sample_text_processed_vectorized = Tfidf_vect.transform([sample_text_processed])
+
+    prediction_SVM = SVM.predict(sample_text_processed_vectorized)
+    value = True if labelencode.inverse_transform(prediction_SVM)[0] else False
+    return {"isProfane":value}

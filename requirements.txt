@@ -2,3 +2,6 @@ requests
 scikit-learn
 joblib
 psycopg2
+nltk
+pickle
+fastapi
